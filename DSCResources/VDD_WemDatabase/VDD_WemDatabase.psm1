@@ -39,7 +39,7 @@ function Get-TargetResource {
             DatabaseName = '';
             DatabaseFilesFolder = '';
             VuemUserSqlPassword = '';
-            DefaultAdministratorsGroup = $DefaultAdministratorsGroup;
+            DefaultAdministratorsGroup = '';
         }
 
         #if ($PSBoundParameters.ContainsKey('Credential')) {
@@ -47,32 +47,34 @@ function Get-TargetResource {
             #Check if database $DatabaseName exist
             if (TestMSSQLDatabase -DatabaseServer $DatabaseServer -DatabaseName $DatabaseName) {
                 $targetResource['DatabaseName'] = $DatabaseName;
-            }
 
-            #Check WEM Default Administrator Group
-            $checkDefaultAdministratorsGroup = Invoke-Sqlcmd -Query "SELECT AAA FROM $DatabaseName WHERE XXX = '$DefaultAdministratorsGroup'" -ServerInstance $DatabaseServer)
-            if ($null -ne $checkDefaultAdministratorsGroup.XXXXX[0] ) {
+                #Check WEM Default Administrator Group
+                #Only the Group SID is stored in dbo.VUEMAdministrators table
+                $AdObj = New-Object System.Security.Principal.NTAccount($DefaultAdministratorsGroup)
+                $strSID = $AdObj.Translate([System.Security.Principal.SecurityIdentifier])
+                $DefaultAdministratorsGroupSID = $strSID.Value
+                $checkDefaultAdministratorsGroup = Invoke-Sqlcmd -Query "SELECT * FROM dbo.VUEMAdministrators WHERE Name = '$DefaultAdministratorsGroupSID'" -ServerInstance $DatabaseServer -Database $DatabaseName
+                if ($null -ne $checkDefaultAdministratorsGroup ) {
+                    $targetResource['DefaultAdministratorsGroup'] = $DefaultAdministratorsGroup;
+                }
 
-            }
+                #Check Database files folder
+                $checkDatabaseFilesFolder = Invoke-Sqlcmd -Query "SELECT name, physical_name AS current_file_location FROM sys.master_files WHERE name LIKE '%$DatabaseName%'" -ServerInstance $DatabaseServer;
+                if ($null -ne $checkDatabaseFilesFolder.current_file_location[0] ) {
+                    $targetResource['DatabaseFilesFolder'] = Split-Path -Path $checkDatabaseFilesFolder.current_file_location[0];
+                }
 
-            #Check Database files folder
-            $checkDatabaseFilesFolder = Invoke-Sqlcmd -Query "SELECT name, physical_name AS current_file_location FROM sys.master_files WHERE name LIKE '%$DatabaseName%'" -ServerInstance $DatabaseServer;
-            if ($null -ne $checkDatabaseFilesFolder.current_file_location[0] ) {
-                $targetResource['DatabaseFilesFolder'] = Split-Path -Path $checkDatabaseFilesFolder.current_file_location[0];
-            }
-
-            #Check VuemUserSqlPassword
-            $checkVuemUserSqlPassword = New-Object System.Data.DataTable
-            $checkVuemUserSqlPassword = Invoke-Sqlcmd -Query "SELECT * FROM master.dbo.syslogins WHERE name = 'VuemUser' and PWDCOMPARE('$VuemUserSqlPassword', password) = 1" -ServerInstance $DatabaseServer;
-            if ($checkVuemUserSqlPassword.name -eq 'VuemUser'){
-                $targetResource['VuemUserSqlPassword'] = $VuemUserSqlPassword;
+                #Check VuemUserSqlPassword
+                $checkVuemUserSqlPassword = New-Object System.Data.DataTable
+                $checkVuemUserSqlPassword = Invoke-Sqlcmd -Query "SELECT * FROM master.dbo.syslogins WHERE name = 'VuemUser' and PWDCOMPARE('$VuemUserSqlPassword', password) = 1" -ServerInstance $DatabaseServer;
+                if ($checkVuemUserSqlPassword.name -eq 'VuemUser'){
+                    $targetResource['VuemUserSqlPassword'] = $VuemUserSqlPassword;
+                }
             }
 
         #}
 
         #else {
-        #
-        #
         #}
 
         return $targetResource;
@@ -116,11 +118,15 @@ function Test-TargetResource {
         #Get the data from target node
         $targetResource = Get-TargetResource @PSBoundParameters;
 
-        #Normalize DatabaseFilesFolder to prepare the tes
-        $targetDatabaseFilesFolder = Join-Path $targetResource.DatabaseFilesFolder "";
+        #Normalize DatabaseFilesFolder to prepare the test
+        $targetDatabaseFilesFolder = ''
+        if ($targetResource.DatabaseFilesFolder) {
+            $targetDatabaseFilesFolder = Join-Path $targetResource.DatabaseFilesFolder "";
+        }
+
         $desiredDatabaseFilesFolder = Join-Path $DatabaseFilesFolder "";
 
-        if (($targetResource.DatabaseName -eq $DatabaseName) -and ( $targetDatabaseFilesFolder -eq $desiredDatabaseFilesFolder) -and ($targetResource.VuemUserSqlPassword -eq $VuemUserSqlPassword)) {
+        if (($targetResource.DatabaseName -eq $DatabaseName) -and ( $targetDatabaseFilesFolder -eq $desiredDatabaseFilesFolder) -and ($targetResource.VuemUserSqlPassword -eq $VuemUserSqlPassword) -and ($targetResource.DefaultAdministratorsGroup -eq $DefaultAdministratorsGroup)) {
 
             Write-Verbose ($localizedData.DatabaseDoesExist -f $DatabaseName, $DatabaseServer);
             Write-Verbose ($localizedData.ResourceInDesiredState -f $DatabaseName);
@@ -202,7 +208,7 @@ function Set-TargetResource {
 
         $scriptBlock = {
             #Import Citrix WEM SDK Powershell module
-            Import-Module "$env:ProgramFiles\Citrix\XenDesktopPoshSdk\Module\Citrix.XenDesktop.Admin.V1\Citrix.XenDesktop.Admin\Citrix.XenDesktop.Admin.psd1" -Verbose:$false;
+            Import-Module "${Env:ProgramFiles(x86)}\Norskale\Norskale Infrastructure Services\SDK\WemDatabaseConfiguration\WemDatabaseConfiguration.psd1" -Verbose:$false;
 
             $newXDDatabaseParams = @{
                 DatabaseServer = $using:DatabaseServer;
