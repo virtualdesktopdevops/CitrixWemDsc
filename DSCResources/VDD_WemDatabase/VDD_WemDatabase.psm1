@@ -219,7 +219,7 @@ function Set-TargetResource {
                     $strSID = $AdObj.Translate([System.Security.Principal.SecurityIdentifier])
                     $DefaultAdministratorsGroupSID = $strSID.Value
                     
-                    $null = Invoke-Sqlcmd -Query "INSERT INTO dbo.VUEMAdministrators VALUES (1, 2, '<?xml version=`"1.0`" encoding=`"utf-8`"?><ArrayOfVUEMAdminPermission xmlns:xsd=`"http://www.w3.org/2001/XMLSchema`" xmlns:xsi=`"http://www.w3.org/2001/XMLSchema-instance`"><VUEMAdminPermission><idSite>0</idSite><AuthorizationLevel>FullAccess</AuthorizationLevel></VUEMAdminPermission></ArrayOfVUEMAdminPermission>')" -ServerInstance $DatabaseServer -Database $DatabaseName
+                    $null = Invoke-Sqlcmd -Query "INSERT INTO dbo.VUEMAdministrators ([Name], [Description], [State], [Type], [Permissions], [RevisionId]) VALUES ('$DefaultAdministratorsGroupSID', NULL, 1, 2, '<?xml version=`"1.0`" encoding=`"utf-8`"?><ArrayOfVUEMAdminPermission xmlns:xsd=`"http://www.w3.org/2001/XMLSchema`" xmlns:xsi=`"http://www.w3.org/2001/XMLSchema-instance`"><VUEMAdminPermission><idSite>0</idSite><AuthorizationLevel>FullAccess</AuthorizationLevel></VUEMAdminPermission></ArrayOfVUEMAdminPermission>', 1)" -ServerInstance $DatabaseServer -Database $DatabaseName
 
                 }
 
