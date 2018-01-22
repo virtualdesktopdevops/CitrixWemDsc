@@ -190,12 +190,6 @@ function Set-TargetResource {
                 ThrowInvalidProgramException -ErrorId 'WEMSdkNotFound' -ErrorMessage $localized.WEMSDKNotFoundError;
         }
 
-        #Test if the $DatabaseFilesFolder directory exists
-        if (-not (Test-Path -Path $DatabaseFilesFolder)) {
-                ThrowInvalidProgramException -ErrorId 'DirectoryNotFound' -ErrorMessage "$DatabaseFilesFolder does not exist";
-        }
-
-
     } #end begin
     process {
        
@@ -206,16 +200,15 @@ function Set-TargetResource {
             #GET data
             $targetResource = Get-TargetResource @PSBoundParameters;
 
-            #Normalize DatabaseFilesFolder to prepare the test
+            #Normalize DatabaseFilesFolder to prepare the DatabaseFileFolder test
             $targetDatabaseFilesFolder = ''
             if ($targetResource.DatabaseFilesFolder) {
                 $targetDatabaseFilesFolder = Join-Path $targetResource.DatabaseFilesFolder "";
             }
-
             $desiredDatabaseFilesFolder = Join-Path $DatabaseFilesFolder "";
 
             #If database does not exist : create database
-            if (-not ($targetResource.DatabaseName -eq $DatabaseName) -and (Test-Path -path $DatabaseFilesFolder)) {
+            if (-not ($targetResource.DatabaseName -eq $DatabaseName)) {
                 $databaseFileName = Join-Path $DatabaseFilesFolder $DatabaseName;
                 New-WemDatabase -DatabaseServerInstance $DatabaseServer -DatabaseName $DatabaseName -DataFilePath($databaseFileName+"_Data.mdf") -LogFilePath($databaseFileName+"_Log.ldf") -DefaultAdministratorsGroup $DefaultAdministratorsGroup;
             }
@@ -226,29 +219,29 @@ function Set-TargetResource {
                     $strSID = $AdObj.Translate([System.Security.Principal.SecurityIdentifier])
                     $DefaultAdministratorsGroupSID = $strSID.Value
                     
-                    $null = Invoke-Sqlcmd -Query "INSERT INTO dbo.Administrators VALUES (1, 2, '<?xml version=`"1.0`" encoding=`"utf-8`"?><ArrayOfVUEMAdminPermission xmlns:xsd=`"http://www.w3.org/2001/XMLSchema`" xmlns:xsi=`"http://www.w3.org/2001/XMLSchema-instance`"><VUEMAdminPermission><idSite>0</idSite><AuthorizationLevel>FullAccess</AuthorizationLevel></VUEMAdminPermission></ArrayOfVUEMAdminPermission>')" -ServerInstance $DatabaseServer -Database $DatabaseName
+                    $null = Invoke-Sqlcmd -Query "INSERT INTO dbo.VUEMAdministrators VALUES (1, 2, '<?xml version=`"1.0`" encoding=`"utf-8`"?><ArrayOfVUEMAdminPermission xmlns:xsd=`"http://www.w3.org/2001/XMLSchema`" xmlns:xsi=`"http://www.w3.org/2001/XMLSchema-instance`"><VUEMAdminPermission><idSite>0</idSite><AuthorizationLevel>FullAccess</AuthorizationLevel></VUEMAdminPermission></ArrayOfVUEMAdminPermission>')" -ServerInstance $DatabaseServer -Database $DatabaseName
 
                 }
 
                 #If database files folder is wrong, move database files to the correct directory
-                if (-not ( $targetDatabaseFilesFolder -eq $desiredDatabaseFilesFolder)  -and (Test-Path -path $DatabaseFilesFolder)) {
+                if (-not ( $targetDatabaseFilesFolder -eq $desiredDatabaseFilesFolder)) {
                     #Get the logical name of the data and log files associated with the database by typing the following:
                     #USE master SELECT name, physical_name FROM sys.master_files WHERE database_id = DB_ID("Personnel");
                     $databaseFiles = Invoke-Sqlcmd -Query "SELECT name, physical_name AS current_file_location FROM sys.master_files WHERE name LIKE '%$DatabaseName%'" -ServerInstance $DatabaseServer;
                 
                     #Take the database you want to work with offline
-                    $null = Invoke-Sqlcmd -Query "ALTER DATABASE $DatabaseName SET offline GO" -ServerInstance $DatabaseServer
+                    $null = Invoke-Sqlcmd -Query "ALTER DATABASE $DatabaseName SET offline WITH ROLLBACK IMMEDIATE" -ServerInstance $DatabaseServer
 
                     #Move one file at a time to the new location
                     foreach ($databaseFile in $databaseFiles) {
                         $fileName = $databaseFile.name
-                        $file = Split-Path -Path $databaseFile.current_file_location  -Leaf -Resolve
+                        $file = Split-Path -Path $databaseFile.current_file_location  -Leaf
                         $newDatabaseFilePath = Join-Path $DatabaseFilesFolder $file
-                        $null = Invoke-Sqlcmd -Query "ALTER DATABASE $DatabaseName MODIFY FILE ( NAME = $fileName, FILENAME = `"$newDatabaseFilePath`") GO" -ServerInstance $DatabaseServer
+                        $null = Invoke-Sqlcmd -Query "ALTER DATABASE $DatabaseName MODIFY FILE ( NAME = $fileName, FILENAME = `"$newDatabaseFilePath`")" -ServerInstance $DatabaseServer
                     }
 
                     #Put the database back online
-                    $null = Invoke-Sqlcmd -Query "ALTER DATABASE $DatabaseName SET online GO" -ServerInstance $DatabaseServer
+                    $null = Invoke-Sqlcmd -Query "ALTER DATABASE $DatabaseName SET online" -ServerInstance $DatabaseServer
                 }
 
                 #If VuemUserSqlPassword is wrong, reset it to the desired value
@@ -267,12 +260,12 @@ function Set-TargetResource {
             ErrorAction = 'Stop';
         }
 
-        if ($Credential) {
-            AddInvokeScriptBlockCredentials -Hashtable $invokeCommandParams -Credential $Credential;
-        }
-        else {
+        #if ($Credential) {
+        #    AddInvokeScriptBlockCredentials -Hashtable $invokeCommandParams -Credential $Credential;
+        #}
+        #else {
             $invokeCommandParams['ScriptBlock'] = [System.Management.Automation.ScriptBlock]::Create($scriptBlock.ToString().Replace('$using:','$'));
-        }
+        #}
 
         #$scriptBlockParams = @($Credential, $SiteName, $DatabaseServer, $DataStore, $DatabaseName);
         #Write-Verbose ($localizedData.InvokingScriptBlockWithParams -f [System.String]::Join("','", $scriptBlockParams));
