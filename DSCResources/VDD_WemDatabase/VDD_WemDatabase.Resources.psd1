@@ -1,7 +1,7 @@
 <# VDD_WemDatabase\VDD_WemDatabase.Resources.psd1 #>
 ConvertFrom-StringData @'
-    XenDesktopSDKNotFoundError    = Citrix WEM Powershell SDK/Snap-in was not found.
-    CreatingXDDatabase            = Creating Citrix WEM Database '{0}' on host '{1}'.
+    WEMSDKNotFoundError    = Citrix WEM Powershell SDK/Snap-in was not found.
+    CreatingWEMDatabase            = Creating Citrix WEM Database '{0}' on host '{1}'.
     DatabaseDoesNotExist          = Citrix WEM Database '{0}' does not exist on host '{1}'.
     DatabaseDoesExist             = Citrix WEM Database '{0}' does exist on host '{1}'.
     ResourceInDesiredState        = Citrix WEM Database '{0}' is in the desired state.
