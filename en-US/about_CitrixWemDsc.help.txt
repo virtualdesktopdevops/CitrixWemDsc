@@ -1,0 +1,15 @@
+TOPIC
+    about_CitrixWemDsc
+
+SHORT DESCRIPTION
+    The CitrixWemDsc module is a collection of Desired Configuration State (DSC) resources which are used for
+    deploying and configuring Citrix Workspace Environment Management.
+
+LONG DESCRIPTION
+    The CitrixWemDsc resources ....
+
+CREDITS
+    ...
+
+KEYWORDS
+    DSC, DSC Resource, Citrix, XenDesktop, WEM
