@@ -1,6 +1,6 @@
 # CitrixWemDsc
 
-The **CitrixWemDsc** module contains DSC resources for deployment and configuration of Citrix Workspace Environment Management (ex Norkscale VUEM).
+The **CitrixWemDsc** module contains DSC resources for deployment and configuration of Citrix Workspace Environment Management (ex Norskcale VUEM).
 
 ## Branches
 
