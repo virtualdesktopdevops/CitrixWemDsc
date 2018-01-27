@@ -17,10 +17,10 @@ function Get-TargetResource {
         [System.String] $DatabaseServer,
 
         #Use vuemUser SQL user account password
-        [Parameter()]
+        [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
         [ValidateSet('Enable','Disable')]
-        [System.String] $SetSqlUserSpecificPassword = 'Disable',
+        [System.String] $SetSqlUserSpecificPassword,
 
         #vuemUser SQL user account password
         [Parameter()]
@@ -30,7 +30,7 @@ function Get-TargetResource {
         #Use Windows authentication for infrastructure service database connection
         [Parameter()]
         [ValidateSet('Enable','Disable')]
-        [System.String] $EnableInfrastructureServiceAccountCredential,
+        [System.String] $EnableInfrastructureServiceAccountCredential = 'Disable',
         
         #PSCredential for running the infrastructure service
         [Parameter()]
@@ -122,7 +122,7 @@ function Get-TargetResource {
         [Parameter()]
         [ValidateNotNullOrEmpty()]
         [ValidateSet('Enable','Disable')]
-        [System.Boolean] $GlobalLicenseServerOverride = 'Disable',
+        [System.String] $GlobalLicenseServerOverride = 'Disable',
         
         #Citrix License Server name
         [Parameter()]
@@ -162,7 +162,7 @@ function Get-TargetResource {
                 DatabaseName = $brokerConfig.DatabaseName
                 DatabaseServer = $brokerConfig.DatabaseServerInstance
                 SetSqlUserSpecificPassword = $brokerConfig.SetSqlUserSpecificPassword
-                SqlUserSpecificPassword = $brokerConfig.SqlUserSpecificPassword
+                #SqlUserSpecificPassword = $brokerConfig.SqlUserSpecificPassword
                 EnableInfrastructureServiceAccountCredential = $brokerConfig.EnableInfrastructureServiceAccountCredential
                 InfrastructureServiceAccountCredential = $brokerConfig.InfrastructureServiceAccountCredentialLogin
                 UseCacheEvenIfOnline = $brokerConfig.UseCacheEvenIfOnline
@@ -219,10 +219,10 @@ function Test-TargetResource {
         [System.String] $DatabaseServer,
 
         #Use vuemUser SQL user account password
-        [Parameter()]
+        [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
         [ValidateSet('Enable','Disable')]
-        [System.String] $SetSqlUserSpecificPassword = 'Disable',
+        [System.String] $SetSqlUserSpecificPassword,
 
         #vuemUser SQL user account password
         [Parameter()]
@@ -232,7 +232,7 @@ function Test-TargetResource {
         #Use Windows authentication for infrastructure service database connection
         [Parameter()]
         [ValidateSet('Enable','Disable')]
-        [System.String] $EnableInfrastructureServiceAccountCredential,
+        [System.String] $EnableInfrastructureServiceAccountCredential = 'Disable',
         
         #PSCredential for running the infrastructure service
         [Parameter()]
@@ -324,7 +324,7 @@ function Test-TargetResource {
         [Parameter()]
         [ValidateNotNullOrEmpty()]
         [ValidateSet('Enable','Disable')]
-        [System.Boolean] $GlobalLicenseServerOverride = 'Disable',
+        [System.String] $GlobalLicenseServerOverride = 'Disable',
         
         #Citrix License Server name
         [Parameter()]
@@ -345,7 +345,7 @@ function Test-TargetResource {
             'DatabaseName'
             'DatabaseServer'
             'SetSqlUserSpecificPassword'
-            'SqlUserSpecificPassword'
+            #'SqlUserSpecificPassword'
             'EnableInfrastructureServiceAccountCredential'
             'InfrastructureServiceAccountCredential'
             'UseCacheEvenIfOnline'
@@ -413,11 +413,11 @@ function Set-TargetResource {
         [System.String] $DatabaseServer,
 
         #Use vuemUser SQL user account password
-        [Parameter()]
+        [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
         [ValidateSet('Enable','Disable')]
-        [System.String] $SetSqlUserSpecificPassword = 'Disable',
-
+        [System.String] $SetSqlUserSpecificPassword,
+        
         #vuemUser SQL user account password
         [Parameter()]
         [ValidateNotNullOrEmpty()]
@@ -426,7 +426,7 @@ function Set-TargetResource {
         #Use Windows authentication for infrastructure service database connection
         [Parameter()]
         [ValidateSet('Enable','Disable')]
-        [System.String] $EnableInfrastructureServiceAccountCredential,
+        [System.String] $EnableInfrastructureServiceAccountCredential = 'Disable',
         
         #PSCredential for running the infrastructure service
         [Parameter()]
@@ -518,7 +518,7 @@ function Set-TargetResource {
         [Parameter()]
         [ValidateNotNullOrEmpty()]
         [ValidateSet('Enable','Disable')]
-        [System.Boolean] $GlobalLicenseServerOverride = 'Disable',
+        [System.String] $GlobalLicenseServerOverride = 'Disable',
         
         #Citrix License Server name
         [Parameter()]
@@ -545,13 +545,13 @@ function Set-TargetResource {
             #Import Citrix WEM SDK Powershell module
             Import-Module "${Env:ProgramFiles(x86)}\Norskale\Norskale Infrastructure Services\SDK\WemInfrastructureServiceConfiguration\WemInfrastructureServiceConfiguration.psd1" -Verbose:$false;
 
-            #$passwd = ConvertTo-SecureString “Password” –AsPlainText –Force;
             #$wemsqlpasswd = ConvertTo-SecureString “Password” –AsPlainText –Force;
             #$cred = New-Object System.Management.Automation.PSCredential(“KINDO\x_citrix_WEM”, $passwd);
+            $SecureSqlUserSpecificPassword = ConvertTo-SecureString $SqlUserSpecificPassword –AsPlainText –Force;
             Set-WemInfrastructureServiceConfiguration `                –DatabaseName $DatabaseName `
                 –DatabaseServerInstance $DatabaseServer `
                 –SetSqlUserSpecificPassword $SetSqlUserSpecificPassword `
-                –SqlUserSpecificPassword $SqlUserSpecificPassword `
+                –SqlUserSpecificPassword $SecureSqlUserSpecificPassword `
                 –EnableInfrastructureServiceAccountCredential $EnableInfrastructureServiceAccountCredential `
                 -InfrastructureServiceAccountCredential $InfrastructureServiceAccountCredential `
                 –UseCacheEvenIfOnline $UseCacheEvenIfOnline `
