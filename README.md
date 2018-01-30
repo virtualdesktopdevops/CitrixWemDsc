@@ -135,18 +135,18 @@ WemBrokerConfig [string] #ResourceName
 * **`[String]` UseCacheEvenIfOnline** _(Optional ValueMap{"Enable", "Disable"})_: Enable infrastructure service to always reading site settings from its cache. Default value : Disable
 * **`[String]` DebugMode** _(Optional ValueMap{"Enable", "Disable"})_: Enable Citrix WEM debug mode. Default value : Disable
 * **`[String]` SendGoogleAnalytics** _(Optional ValueMap{"Enable", "Disable"})_: Enable collection of statistics. Default value : Disable
-* **`[Uini32]` AdminServicePort** _(Optional)_: Administration port for administration console to connect to the infrastructure service.
-* **`[Uini32]` AgentServicePort** _(Optional)_: Agent service port for agent to connect to the infrastructure server.
-* **`[Uini32]` AgentSyncPort** _(Optional)_: Cache synchronization port for agent cache synchronization process to connect to the infrastructure service.
-* **`[Uini32]` MonitoringPort** _(Optional)_: Citrix WEM monitoring port.
-* **`[Uini32]` CacheRefreshDelay** _(Optional)_: Time (in minutes) before the infrastructure service refreshes its cache.
-* **`[Uini32]` SQLCheckDelay** _(Optional)_: Time (in seconds) between each infrastructure service attempt to poll the SQL server.
-* **`[Uini32]` InfrastructureServiceSQLConnectionTimeout** _(Optional)_: Time (in seconds) which the infrastructure service waits when trying to establish a connection with the SQL server.
+* **`[Uint32]` AdminServicePort** _(Optional)_: Administration port for administration console to connect to the infrastructure service.
+* **`[Uint32]` AgentServicePort** _(Optional)_: Agent service port for agent to connect to the infrastructure server.
+* **`[Uint32]` AgentSyncPort** _(Optional)_: Cache synchronization port for agent cache synchronization process to connect to the infrastructure service.
+* **`[Uint32]` MonitoringPort** _(Optional)_: Citrix WEM monitoring port.
+* **`[Uint32]` CacheRefreshDelay** _(Optional)_: Time (in minutes) before the infrastructure service refreshes its cache.
+* **`[Uint32]` SQLCheckDelay** _(Optional)_: Time (in seconds) between each infrastructure service attempt to poll the SQL server.
+* **`[Uint32]` InfrastructureServiceSQLConnectionTimeout** _(Optional)_: Time (in seconds) which the infrastructure service waits when trying to establish a connection with the SQL server.
 * **`[String]` EnableScheduledMaintenance** _(Optional ValueMap{"Enable", "Disable"})_: Enable deletion of old statistics records from the database at periodic intervals. Default value : Disable.
-* **`[Uini32]` StatisticsRetentionPeriod** _(Optional)_: Retention period for user and agent statistics (in days).
-* **`[Uini32]` SystemMonitoringRetentionPeriod** _(Optional)_: Retention period for system optimization statistics (in days).
-* **`[Uini32]` AgentRegistrationsRetentionPeriod** _(Optional)_: Retention period for agent registration logs (in days).
-* **`[Uini32]` DatabaseMaintenanceExecutionTime** _(Optional)_: The time at which the database maintenance action is performed (HH:MM).
+* **`[Uint32]` StatisticsRetentionPeriod** _(Optional)_: Retention period for user and agent statistics (in days).
+* **`[Uint32]` SystemMonitoringRetentionPeriod** _(Optional)_: Retention period for system optimization statistics (in days).
+* **`[Uint32]` AgentRegistrationsRetentionPeriod** _(Optional)_: Retention period for agent registration logs (in days).
+* **`[Uint32]` DatabaseMaintenanceExecutionTime** _(Optional)_: The time at which the database maintenance action is performed (HH:MM).
 * **`[String]` GlobalLicenseServerOverride** _(Optional ValueMap{"Enable", "Disable"})_: Override any Citrix License Server information already in the WEM database. Default value : Disable.
 * **`[String]` LicenseServerName** _(Optional)_: Citrix License Server name.
-* **`[Uini32]` LicenseServerPort** _(Optional)_: Citrix License Server port.
+* **`[Uint32]` LicenseServerPort** _(Optional)_: Citrix License Server port.
