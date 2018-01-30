@@ -1,0 +1,29 @@
+
+[ClassVersion("1.0.0"), FriendlyName("WemBrokerConfig")]
+class VDD_WemBrokerConfig : OMI_BaseResource
+{
+    [Key, Description("Citrix WEM database name.")] String DatabaseName;
+    [Required, Description("MS SQL Server hostname hosting the WEM database")] String DatabaseServer;
+    [Required, ValueMap{"Enable", "Disable"}, Values{"Enable", "Disable"}, Description("Use vuemUser SQL user account password")] String SetSqlUserSpecificPassword;
+    [Write, Description("vuemUser SQL user account password.")] String SqlUserSpecificPassword;
+    [Write, ValueMap{"Enable", "Disable"}, Values{"Enable", "Disable"}, Description("Use Windows authentication for infrastructure service database connection.")] String EnableInfrastructureServiceAccountCredential;
+    [Write, EmbeddedInstance("MSFT_Credential"), Description("PSCredential for running the infrastructure service.")] String InfrastructureServiceAccountCredential;
+    [Write, ValueMap{"Enable", "Disable"}, Values{"Enable", "Disable"}, Description("Enable infrastructure service to always reading site settings from its cache.")] String UseCacheEvenIfOnline;
+    [Write, ValueMap{"Enable", "Disable"}, Values{"Enable", "Disable"}, Description("Enable Citrix WEM debug mode")] String DebugMode;
+    [Write, ValueMap{"Enable", "Disable"}, Values{"Enable", "Disable"}, Description("Enable collection of statistics.")] String SendGoogleAnalytics;
+    [Write, Description("Administration port for administration console to connect to the infrastructure service.")] uint32 AdminServicePort;
+    [Write, Description("Agent service port for agent to connect to the infrastructure server.")] uint32 AgentServicePort;
+    [Write, Description("Cache synchronization port for agent cache synchronization process to connect to the infrastructure service.")] uint32 AgentSyncPort;
+    [Write, Description("Citrix WEM monitoring port.")] uint32 MonitoringPort;
+    [Write, Description("Time (in minutes) before the infrastructure service refreshes its cache.")] uint32 CacheRefreshDelay;
+    [Write, Description("Time (in seconds) between each infrastructure service attempt to poll the SQL server.")] uint32 SQLCheckDelay;
+    [Write, Description("Time (in seconds) which the infrastructure service waits when trying to establish a connection with the SQL server.")] uint32 InfrastructureServiceSQLConnectionTimeout;
+    [Write, ValueMap{"Enable", "Disable"}, Values{"Enable", "Disable"}, Description("Enable deletion of old statistics records from the database at periodic intervals.")] String EnableScheduledMaintenance;
+    [Write, Description("Retention period for user and agent statistics (in days).")] uint32 StatisticsRetentionPeriod;
+    [Write, Description("Retention period for system optimization statistics (in days).")] uint32 SystemMonitoringRetentionPeriod;
+    [Write, Description("Retention period for agent registration logs (in days).")] uint32 AgentRegistrationsRetentionPeriod;
+    [Write, Description("The time at which the database maintenance action is performed (HH:MM).")] String DatabaseMaintenanceExecutionTime;
+    [Write, ValueMap{"Enable", "Disable"}, Values{"Enable", "Disable"}, Description("Override any Citrix License Server information already in the WEM database.")] String GlobalLicenseServerOverride;
+    [Write, Description("Citrix License Server name.")] String LicenseServerName;
+    [Write, Description("Citrix License Server port.")] uint32 LicenseServerPort;
+};

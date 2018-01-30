@@ -17,7 +17,6 @@ function Get-TargetResource {
         [ValidateNotNullOrEmpty()]
         [System.String] $DatabaseFilesFolder,
 
-        #Specific password for the WEM vuemUser SQL user account. Leave empty to create a default password.
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
         [System.String] $VuemUserSqlPassword,
@@ -30,7 +29,10 @@ function Get-TargetResource {
         [AllowNull()]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.CredentialAttribute()]
-        $Credential
+        $Credential,
+
+        [Parameter()] [ValidateSet('Present','Absent')]
+        [System.String] $Ensure = 'Present'
     )
     process {
 
@@ -40,6 +42,7 @@ function Get-TargetResource {
             DatabaseFilesFolder = '';
             VuemUserSqlPassword = '';
             DefaultAdministratorsGroup = '';
+            Ensure = '';
         }
 
         #if ($PSBoundParameters.ContainsKey('Credential')) {
@@ -47,6 +50,7 @@ function Get-TargetResource {
             #Check if database $DatabaseName exist
             if (TestMSSQLDatabase -DatabaseServer $DatabaseServer -DatabaseName $DatabaseName) {
                 $targetResource['DatabaseName'] = $DatabaseName;
+                $targetResource['Ensure'] = 'Present';
 
                 #Check WEM Default Administrator Group
                 #Only the Group SID is stored in dbo.VUEMAdministrators table
@@ -70,6 +74,9 @@ function Get-TargetResource {
                 if ($checkVuemUserSqlPassword.name -eq 'VuemUser'){
                     $targetResource['VuemUserSqlPassword'] = $VuemUserSqlPassword;
                 }
+            }
+            else {
+                $targetResource['Ensure'] = 'Absent';
             }
 
         #}
@@ -112,7 +119,10 @@ function Test-TargetResource {
         [AllowNull()]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.CredentialAttribute()]
-        $Credential
+        $Credential,
+
+        [Parameter()] [ValidateSet('Present','Absent')]
+        [System.String] $Ensure = 'Present'
     )
     process {
         #Get the data from target node
@@ -126,7 +136,7 @@ function Test-TargetResource {
 
         $desiredDatabaseFilesFolder = Join-Path $DatabaseFilesFolder "";
 
-        if (($targetResource.DatabaseName -eq $DatabaseName) -and ( $targetDatabaseFilesFolder -eq $desiredDatabaseFilesFolder) -and ($targetResource.VuemUserSqlPassword -eq $VuemUserSqlPassword) -and ($targetResource.DefaultAdministratorsGroup -eq $DefaultAdministratorsGroup)) {
+        if (($targetResource.Ensure -eq $Ensure) -and ($targetResource.DatabaseName -eq $DatabaseName) -and ( $targetDatabaseFilesFolder -eq $desiredDatabaseFilesFolder) -and ($targetResource.VuemUserSqlPassword -eq $VuemUserSqlPassword) -and ($targetResource.DefaultAdministratorsGroup -eq $DefaultAdministratorsGroup)) {
 
             Write-Verbose ($localizedData.DatabaseDoesExist -f $DatabaseName, $DatabaseServer);
             Write-Verbose ($localizedData.ResourceInDesiredState -f $DatabaseName);
@@ -181,7 +191,10 @@ function Set-TargetResource {
         [AllowNull()]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.CredentialAttribute()]
-        $Credential
+        $Credential,
+
+        [Parameter()] [ValidateSet('Present','Absent')]
+        [System.String] $Ensure = 'Present'
     )
     begin {
 
@@ -192,7 +205,7 @@ function Set-TargetResource {
 
     } #end begin
     process {
-       
+
         $scriptBlock = {
             #Import Citrix WEM SDK Powershell module
             Import-Module "${Env:ProgramFiles(x86)}\Norskale\Norskale Infrastructure Services\SDK\WemDatabaseConfiguration\WemDatabaseConfiguration.psd1" -Verbose:$false;
@@ -200,57 +213,62 @@ function Set-TargetResource {
             #GET data
             $targetResource = Get-TargetResource @PSBoundParameters;
 
-            #Normalize DatabaseFilesFolder to prepare the DatabaseFileFolder test
-            $targetDatabaseFilesFolder = ''
-            if ($targetResource.DatabaseFilesFolder) {
-                $targetDatabaseFilesFolder = Join-Path $targetResource.DatabaseFilesFolder "";
-            }
-            $desiredDatabaseFilesFolder = Join-Path $DatabaseFilesFolder "";
-
-            #If database does not exist : create database
-            if (-not ($targetResource.DatabaseName -eq $DatabaseName)) {
-                $databaseFileName = Join-Path $DatabaseFilesFolder $DatabaseName;
-                New-WemDatabase -DatabaseServerInstance $DatabaseServer -DatabaseName $DatabaseName -DataFilePath($databaseFileName+"_Data.mdf") -LogFilePath($databaseFileName+"_Log.ldf") -DefaultAdministratorsGroup $DefaultAdministratorsGroup;
-            }
-            else {
-                #If default administator group is wrong : Configure Default Administrators Group
-                if (-not ($targetResource.DefaultAdministratorsGroup -eq $DefaultAdministratorsGroup)) {
-                    $AdObj = New-Object System.Security.Principal.NTAccount($DefaultAdministratorsGroup)
-                    $strSID = $AdObj.Translate([System.Security.Principal.SecurityIdentifier])
-                    $DefaultAdministratorsGroupSID = $strSID.Value
-                    
-                    $null = Invoke-Sqlcmd -Query "INSERT INTO dbo.VUEMAdministrators ([Name], [Description], [State], [Type], [Permissions], [RevisionId]) VALUES ('$DefaultAdministratorsGroupSID', NULL, 1, 2, '<?xml version=`"1.0`" encoding=`"utf-8`"?><ArrayOfVUEMAdminPermission xmlns:xsd=`"http://www.w3.org/2001/XMLSchema`" xmlns:xsi=`"http://www.w3.org/2001/XMLSchema-instance`"><VUEMAdminPermission><idSite>0</idSite><AuthorizationLevel>FullAccess</AuthorizationLevel></VUEMAdminPermission></ArrayOfVUEMAdminPermission>', 1)" -ServerInstance $DatabaseServer -Database $DatabaseName
-
+            if ($Ensure -eq 'Present') {
+                #Normalize DatabaseFilesFolder to prepare the DatabaseFileFolder test
+                $targetDatabaseFilesFolder = ''
+                if ($targetResource.DatabaseFilesFolder) {
+                    $targetDatabaseFilesFolder = Join-Path $targetResource.DatabaseFilesFolder "";
                 }
+                $desiredDatabaseFilesFolder = Join-Path $DatabaseFilesFolder "";
 
-                #If database files folder is wrong, move database files to the correct directory
-                if (-not ( $targetDatabaseFilesFolder -eq $desiredDatabaseFilesFolder)) {
-                    #Get the logical name of the data and log files associated with the database by typing the following:
-                    #USE master SELECT name, physical_name FROM sys.master_files WHERE database_id = DB_ID("Personnel");
-                    $databaseFiles = Invoke-Sqlcmd -Query "SELECT name, physical_name AS current_file_location FROM sys.master_files WHERE name LIKE '%$DatabaseName%'" -ServerInstance $DatabaseServer;
-                
-                    #Take the database you want to work with offline
-                    $null = Invoke-Sqlcmd -Query "ALTER DATABASE $DatabaseName SET offline WITH ROLLBACK IMMEDIATE" -ServerInstance $DatabaseServer
+                #If database does not exist : create database
+                if (-not ($targetResource.DatabaseName -eq $DatabaseName)) {
+                    $databaseFileName = Join-Path $DatabaseFilesFolder $DatabaseName;
+                    New-WemDatabase -DatabaseServerInstance $DatabaseServer -DatabaseName $DatabaseName -DataFilePath($databaseFileName+"_Data.mdf") -LogFilePath($databaseFileName+"_Log.ldf") -DefaultAdministratorsGroup $DefaultAdministratorsGroup;
+                    Write-Verbose ($using:localizedData.CreatingWEMDatabase -f $using:DatabaseName, $using:DatabaseServer);
+                }
+                else {
+                    #If default administator group is wrong : Configure Default Administrators Group
+                    if (-not ($targetResource.DefaultAdministratorsGroup -eq $DefaultAdministratorsGroup)) {
+                        $AdObj = New-Object System.Security.Principal.NTAccount($DefaultAdministratorsGroup)
+                        $strSID = $AdObj.Translate([System.Security.Principal.SecurityIdentifier])
+                        $DefaultAdministratorsGroupSID = $strSID.Value
 
-                    #Move one file at a time to the new location
-                    foreach ($databaseFile in $databaseFiles) {
-                        $fileName = $databaseFile.name
-                        $file = Split-Path -Path $databaseFile.current_file_location  -Leaf
-                        $newDatabaseFilePath = Join-Path $DatabaseFilesFolder $file
-                        $null = Invoke-Sqlcmd -Query "ALTER DATABASE $DatabaseName MODIFY FILE ( NAME = $fileName, FILENAME = `"$newDatabaseFilePath`")" -ServerInstance $DatabaseServer
+                        $null = Invoke-Sqlcmd -Query "INSERT INTO dbo.VUEMAdministrators ([Name], [Description], [State], [Type], [Permissions], [RevisionId]) VALUES ('$DefaultAdministratorsGroupSID', NULL, 1, 2, '<?xml version=`"1.0`" encoding=`"utf-8`"?><ArrayOfVUEMAdminPermission xmlns:xsd=`"http://www.w3.org/2001/XMLSchema`" xmlns:xsi=`"http://www.w3.org/2001/XMLSchema-instance`"><VUEMAdminPermission><idSite>0</idSite><AuthorizationLevel>FullAccess</AuthorizationLevel></VUEMAdminPermission></ArrayOfVUEMAdminPermission>', 1)" -ServerInstance $DatabaseServer -Database $DatabaseName
+
                     }
 
-                    #Put the database back online
-                    $null = Invoke-Sqlcmd -Query "ALTER DATABASE $DatabaseName SET online" -ServerInstance $DatabaseServer
-                }
+                    #If database files folder is wrong, move database files to the correct directory
+                    if (-not ( $targetDatabaseFilesFolder -eq $desiredDatabaseFilesFolder)) {
+                        #Get the logical name of the data and log files associated with the database by typing the following:
+                        #USE master SELECT name, physical_name FROM sys.master_files WHERE database_id = DB_ID("Personnel");
+                        $databaseFiles = Invoke-Sqlcmd -Query "SELECT name, physical_name AS current_file_location FROM sys.master_files WHERE name LIKE '%$DatabaseName%'" -ServerInstance $DatabaseServer;
 
-                #If VuemUserSqlPassword is wrong, reset it to the desired value
-                if (-not ($targetResource.VuemUserSqlPassword -eq $VuemUserSqlPassword)) {
-                    $null = Invoke-Sqlcmd -Query "ALTER LOGIN vuemUser WITH PASSWORD = '$VuemUserSqlPassword'" -ServerInstance $DatabaseServer
+                        #Take the database you want to work with offline
+                        $null = Invoke-Sqlcmd -Query "ALTER DATABASE $DatabaseName SET offline WITH ROLLBACK IMMEDIATE" -ServerInstance $DatabaseServer
+
+                        #Move one file at a time to the new location
+                        foreach ($databaseFile in $databaseFiles) {
+                            $fileName = $databaseFile.name
+                            $file = Split-Path -Path $databaseFile.current_file_location  -Leaf
+                            $newDatabaseFilePath = Join-Path $DatabaseFilesFolder $file
+                            $null = Invoke-Sqlcmd -Query "ALTER DATABASE $DatabaseName MODIFY FILE ( NAME = $fileName, FILENAME = `"$newDatabaseFilePath`")" -ServerInstance $DatabaseServer
+                        }
+
+                        #Put the database back online
+                        $null = Invoke-Sqlcmd -Query "ALTER DATABASE $DatabaseName SET online" -ServerInstance $DatabaseServer
+                    }
+
+                    #If VuemUserSqlPassword is wrong, reset it to the desired value
+                    if (-not ($targetResource.VuemUserSqlPassword -eq $VuemUserSqlPassword)) {
+                        $null = Invoke-Sqlcmd -Query "ALTER LOGIN vuemUser WITH PASSWORD = '$VuemUserSqlPassword'" -ServerInstance $DatabaseServer
+                    }
                 }
             }
-
-            Write-Verbose ($using:localizedData.CreatingWEMDatabase -f $using:DatabaseName, $using:DatabaseServer);
+            #If ensure eq Absent, drop the existing database
+            else {
+                $null = Invoke-Sqlcmd -Query "DROP DATABASE $DatabaseName" -ServerInstance $DatabaseServer
+            }
 
 
         } #end scriptBlock
