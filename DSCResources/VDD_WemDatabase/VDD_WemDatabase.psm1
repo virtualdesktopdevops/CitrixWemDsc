@@ -23,6 +23,10 @@ function Get-TargetResource {
 
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
+        [System.String] $WemInfrastructureServiceAccount,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
         [System.String] $DefaultAdministratorsGroup,
 
         [Parameter()]
@@ -34,6 +38,19 @@ function Get-TargetResource {
         [Parameter()] [ValidateSet('Present','Absent')]
         [System.String] $Ensure = 'Present'
     )
+    begin {
+
+        #Test if WEM SDK module is available
+        if (-not (Test-Path -Path "${Env:ProgramFiles(x86)}\Norskale\Norskale Infrastructure Services\SDK\WemDatabaseConfiguration\WemDatabaseConfiguration.psd1" -PathType leaf)) {
+            ThrowInvalidProgramException -ErrorId 'WEMSdkNotFound' -ErrorMessage $localized.WEMSDKNotFoundError;
+        }
+
+        #Test if SqlServer module if available
+        if (-not (Get-Module -ListAvailable -Name SqlServer)) {
+            ThrowInvalidProgramException -ErrorId 'SqlServerModuleNotFoundError' -ErrorMessage $localized.WEMSDKNotFoundError;
+        }
+
+    } #end begin
     process {
 
         $targetResource = @{
@@ -41,11 +58,13 @@ function Get-TargetResource {
             DatabaseName = '';
             DatabaseFilesFolder = '';
             VuemUserSqlPassword = '';
+            WemInfrastructureServiceAccount = '';
             DefaultAdministratorsGroup = '';
             Ensure = '';
         }
 
         #if ($PSBoundParameters.ContainsKey('Credential')) {
+            Import-Module -Name SqlServer;
 
             #Check if database $DatabaseName exist
             if (TestMSSQLDatabase -DatabaseServer $DatabaseServer -DatabaseName $DatabaseName) {
@@ -74,6 +93,15 @@ function Get-TargetResource {
                 if ($checkVuemUserSqlPassword.name -eq 'VuemUser'){
                     $targetResource['VuemUserSqlPassword'] = $VuemUserSqlPassword;
                 }
+
+
+                #Check if Wem Infrastructure Service account is allowed to use the database
+                $databasePermissionsQuery= "SELECT Us.name AS username, Obj.name AS object, dp.permission_name AS permission  FROM sys.database_permissions dp JOIN sys.sysusers Us  ON dp.grantee_principal_id = Us.uid AND Us.name = '$WemInfrastructureServiceAccount' JOIN sys.sysobjects Obj ON dp.major_id = Obj.id";
+                $databasePermissions = Invoke-Sqlcmd -Query $databasePermissionsQuery -ServerInstance $DatabaseServer -Database $DatabaseName;
+                if ($null -ne $databasePermissions ) {
+                    $targetResource['WemInfrastructureServiceAccount'] = $WemInfrastructureServiceAccount;
+                }
+
             }
             else {
                 $targetResource['Ensure'] = 'Absent';
@@ -113,6 +141,10 @@ function Test-TargetResource {
 
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
+        [System.String] $WemInfrastructureServiceAccount,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
         [System.String] $DefaultAdministratorsGroup,
 
         [Parameter()]
@@ -136,7 +168,12 @@ function Test-TargetResource {
 
         $desiredDatabaseFilesFolder = Join-Path $DatabaseFilesFolder "";
 
-        if (($targetResource.Ensure -eq $Ensure) -and ($targetResource.DatabaseName -eq $DatabaseName) -and ( $targetDatabaseFilesFolder -eq $desiredDatabaseFilesFolder) -and ($targetResource.VuemUserSqlPassword -eq $VuemUserSqlPassword) -and ($targetResource.DefaultAdministratorsGroup -eq $DefaultAdministratorsGroup)) {
+        if (($targetResource.Ensure -eq $Ensure) -and 
+            ($targetResource.DatabaseName -eq $DatabaseName) -and 
+            ($targetDatabaseFilesFolder -eq $desiredDatabaseFilesFolder) -and 
+            ($targetResource.VuemUserSqlPassword -eq $VuemUserSqlPassword) -and
+            ($targetResource.WemInfrastructureServiceAccount -eq $WemInfrastructureServiceAccount) -and 
+            ($targetResource.DefaultAdministratorsGroup -eq $DefaultAdministratorsGroup)) {
 
             Write-Verbose ($localizedData.DatabaseDoesExist -f $DatabaseName, $DatabaseServer);
             Write-Verbose ($localizedData.ResourceInDesiredState -f $DatabaseName);
@@ -185,6 +222,10 @@ function Set-TargetResource {
 
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
+        [System.String] $WemInfrastructureServiceAccount,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
         [System.String] $DefaultAdministratorsGroup,
 
         [Parameter()]
@@ -200,7 +241,12 @@ function Set-TargetResource {
 
         #Test if WEM SDK module is available
         if (-not (Test-Path -Path "${Env:ProgramFiles(x86)}\Norskale\Norskale Infrastructure Services\SDK\WemDatabaseConfiguration\WemDatabaseConfiguration.psd1" -PathType leaf)) {
-                ThrowInvalidProgramException -ErrorId 'WEMSdkNotFound' -ErrorMessage $localized.WEMSDKNotFoundError;
+            ThrowInvalidProgramException -ErrorId 'WEMSdkNotFound' -ErrorMessage $localized.WEMSDKNotFoundError;
+        }
+
+        #Test if SqlServer module if available
+        if (-not (Get-Module -ListAvailable -Name SqlServer)) {
+            ThrowInvalidProgramException -ErrorId 'SqlServerModuleNotFoundError' -ErrorMessage $localized.WEMSDKNotFoundError;
         }
 
     } #end begin
@@ -209,6 +255,7 @@ function Set-TargetResource {
         $scriptBlock = {
             #Import Citrix WEM SDK Powershell module
             Import-Module "${Env:ProgramFiles(x86)}\Norskale\Norskale Infrastructure Services\SDK\WemDatabaseConfiguration\WemDatabaseConfiguration.psd1" -Verbose:$false;
+            Import-Module -Name SqlServer;
 
             #GET data
             $targetResource = Get-TargetResource @PSBoundParameters;
@@ -221,10 +268,14 @@ function Set-TargetResource {
                 }
                 $desiredDatabaseFilesFolder = Join-Path $DatabaseFilesFolder "";
 
+                #Convert plain-text VuemUserSqlPassword to Secure-String
+                $VuemUserSqlPasswordSecureString = ConvertTo-SecureString -AsPlainText $VuemUserSqlPassword -Force
+
+
                 #If database does not exist : create database
                 if (-not ($targetResource.DatabaseName -eq $DatabaseName)) {
                     $databaseFileName = Join-Path $DatabaseFilesFolder $DatabaseName;
-                    New-WemDatabase -DatabaseServerInstance $DatabaseServer -DatabaseName $DatabaseName -DataFilePath($databaseFileName+"_Data.mdf") -LogFilePath($databaseFileName+"_Log.ldf") -DefaultAdministratorsGroup $DefaultAdministratorsGroup;
+                    New-WemDatabase -DatabaseServerInstance $DatabaseServer -DatabaseName $DatabaseName -DataFilePath($databaseFileName+"_Data.mdf") -LogFilePath($databaseFileName+"_Log.ldf") -DefaultAdministratorsGroup $DefaultAdministratorsGroup -VuemUserSqlPassword $VuemUserSqlPasswordSecureString -WindowsAccount $WemInfrastructureServiceAccount;
                     Write-Verbose ($using:localizedData.CreatingWEMDatabase -f $using:DatabaseName, $using:DatabaseServer);
                 }
                 else {
