@@ -314,6 +314,31 @@ function Set-TargetResource {
                     if (-not ($targetResource.VuemUserSqlPassword -eq $VuemUserSqlPassword)) {
                         $null = Invoke-Sqlcmd -Query "ALTER LOGIN vuemUser WITH PASSWORD = '$VuemUserSqlPassword'" -ServerInstance $DatabaseServer
                     }
+
+                    #If WemInfrastructureServiceAccount is wrong, add the correct user login and permissions. Remove wrog user permissions.
+                    if (-not ($targetResource.WemInfrastructureServiceAccount -eq $WemInfrastructureServiceAccount)) {
+                        # Add the user into SQL.
+                        [string]$err = Invoke-Sqlcmd -Query "CREATE LOGIN `[$WemInfrastructureServiceAccount`] FROM WINDOWS WITH DEFAULT_DATABASE=`[MASTER`], DEFAULT_LANGUAGE=`[us_english`]" -ServerInstance $DatabaseServer
+                        
+                        # This variable will become populated if an error occurred; else it will remain blank.
+                        if (-not $err) {
+                            #Assign permissions to WemInfrastructureServiceAccount on WEM DatabaseName
+                            [string]$err = Invoke-Sqlcmd -Query "GRANT CONNECT TO `[$WemInfrastructureServiceAccount`]  AS `[dbo`]" -ServerInstance $DatabaseServer -Database $DatabaseName;
+                            [string]$err = Invoke-Sqlcmd -Query "GRANT CREATE PROCEDURE TO `[$WemInfrastructureServiceAccount`]  AS `[dbo`]" -ServerInstance $DatabaseServer -Database $DatabaseName;
+                            [string]$err = Invoke-Sqlcmd -Query "GRANT CREATE QUEUE TO `[$WemInfrastructureServiceAccount`] AS `[dbo`]" -ServerInstance $DatabaseServer -Database $DatabaseName;
+                            [string]$err = Invoke-Sqlcmd -Query "GRANT CREATE SERVICE TO `[$WemInfrastructureServiceAccount`] AS `[dbo`]" -ServerInstance $DatabaseServer -Database $DatabaseName;
+                            [string]$err = Invoke-Sqlcmd -Query "GRANT SUBSCRIBE QUERY NOTIFICATIONS TO `[$WemInfrastructureServiceAccount`] AS `[dbo`]" -ServerInstance $DatabaseServer -Database $DatabaseName;
+                            
+                            if ($err) {
+                                Write-Verbose("Error Assigning Permisssions to $WemInfrastructureServiceAccount : $err");
+                            }
+                        
+                        }
+                        else {
+                            Write-Verbose("The following error occurred while creating SQL User: $err ");
+                        }
+                    }
+
                 }
             }
             #If ensure eq Absent, drop the existing database
