@@ -40,14 +40,9 @@ function Get-TargetResource {
     )
     begin {
 
-        #Test if WEM SDK module is available
-        if (-not (Test-Path -Path "${Env:ProgramFiles(x86)}\Norskale\Norskale Infrastructure Services\SDK\WemDatabaseConfiguration\WemDatabaseConfiguration.psd1" -PathType leaf)) {
-            ThrowInvalidProgramException -ErrorId 'WEMSdkNotFound' -ErrorMessage $localized.WEMSDKNotFoundError;
-        }
-
         #Test if SqlServer module if available
         if (-not (Get-Module -ListAvailable -Name SqlServer)) {
-            ThrowInvalidProgramException -ErrorId 'SqlServerModuleNotFoundError' -ErrorMessage $localized.WEMSDKNotFoundError;
+            ThrowInvalidProgramException -ErrorId 'SqlServerModuleNotFoundError' -ErrorMessage $localizedData.SqlServerModuleNotFoundError;
         }
 
     } #end begin
@@ -241,12 +236,12 @@ function Set-TargetResource {
 
         #Test if WEM SDK module is available
         if (-not (Test-Path -Path "${Env:ProgramFiles(x86)}\Norskale\Norskale Infrastructure Services\SDK\WemDatabaseConfiguration\WemDatabaseConfiguration.psd1" -PathType leaf)) {
-            ThrowInvalidProgramException -ErrorId 'WEMSdkNotFound' -ErrorMessage $localized.WEMSDKNotFoundError;
+            ThrowInvalidProgramException -ErrorId 'WEMSdkNotFound' -ErrorMessage $localizedData.WEMSDKNotFoundError;
         }
 
         #Test if SqlServer module if available
         if (-not (Get-Module -ListAvailable -Name SqlServer)) {
-            ThrowInvalidProgramException -ErrorId 'SqlServerModuleNotFoundError' -ErrorMessage $localized.WEMSDKNotFoundError;
+            ThrowInvalidProgramException -ErrorId 'SqlServerModuleNotFoundError' -ErrorMessage $localizedData.SqlServerModuleNotFoundError;
         }
 
     } #end begin
