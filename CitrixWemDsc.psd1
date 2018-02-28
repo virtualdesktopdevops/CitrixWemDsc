@@ -4,7 +4,7 @@
     Author               = 'Virtual Desktop Devops'
     CompanyName          = 'Virtual Desktop Devops'
     Copyright            = '(c) 2018 Virtual Desktop Devops Limited. All rights reserved.'
-    Description          = 'Citrix Workspace Environment Manager module'
+    Description          = 'Citrix Workspace Environment Manager community module'
     PowerShellVersion    = '5.0';
     DscResourcesToExport = @(
                                 'WemDatabase',
@@ -14,11 +14,11 @@
         PSData = @{
             Tags       = @('VirtualDesktopDevops','Citrix','XenDesktop','XenApp','DSC','WEM','Norskale')
             LicenseUri = 'https://github.com/virtualdesktopdevops/CitrixWemDsc/blob/master/LICENSE'
-            ProjectUri = 'https://virtualdesktopdevops.github.io/CitrixWemDsc/'
+            ProjectUri = 'http://www.virtualdesktopdevops.com/powershell-dsc/citrixwemdsc.html'
             IconUri    = ''
-            ReleaseNotes = '- Beta release of the CitrixWemDsc powershell DSC module
-            - Compatible with Citrix Workspace Environment Manager 4.5
-            - WemDatabase & WemBrokerConfig DSC resources'
+            ReleaseNotes = '- Beta release of the CitrixWemDsc powershell DSC community module
+- Compatible with Citrix Workspace Environment Manager 4.5
+- WemDatabase & WemBrokerConfig DSC resources'
         } # End of PSData hashtable
     } # End of PrivateData hashtable
 }
