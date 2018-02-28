@@ -23,6 +23,10 @@ function Get-TargetResource {
 
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
+        [System.String] $WemInfrastructureServiceAccount,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
         [System.String] $DefaultAdministratorsGroup,
 
         [Parameter()]
@@ -34,6 +38,14 @@ function Get-TargetResource {
         [Parameter()] [ValidateSet('Present','Absent')]
         [System.String] $Ensure = 'Present'
     )
+    begin {
+
+        #Test if SqlServer module if available
+        if (-not (Get-Module -ListAvailable -Name SqlServer)) {
+            ThrowInvalidProgramException -ErrorId 'SqlServerModuleNotFoundError' -ErrorMessage $localizedData.SqlServerModuleNotFoundError;
+        }
+
+    } #end begin
     process {
 
         $targetResource = @{
@@ -41,11 +53,13 @@ function Get-TargetResource {
             DatabaseName = '';
             DatabaseFilesFolder = '';
             VuemUserSqlPassword = '';
+            WemInfrastructureServiceAccount = '';
             DefaultAdministratorsGroup = '';
             Ensure = '';
         }
 
         #if ($PSBoundParameters.ContainsKey('Credential')) {
+            Import-Module -Name SqlServer;
 
             #Check if database $DatabaseName exist
             if (TestMSSQLDatabase -DatabaseServer $DatabaseServer -DatabaseName $DatabaseName) {
@@ -74,6 +88,15 @@ function Get-TargetResource {
                 if ($checkVuemUserSqlPassword.name -eq 'VuemUser'){
                     $targetResource['VuemUserSqlPassword'] = $VuemUserSqlPassword;
                 }
+
+
+                #Check if Wem Infrastructure Service account is allowed to use the database
+                $databasePermissionsQuery= "SELECT Us.name AS username, Obj.name AS object, dp.permission_name AS permission  FROM sys.database_permissions dp JOIN sys.sysusers Us  ON dp.grantee_principal_id = Us.uid AND Us.name = '$WemInfrastructureServiceAccount' JOIN sys.sysobjects Obj ON dp.major_id = Obj.id";
+                $databasePermissions = Invoke-Sqlcmd -Query $databasePermissionsQuery -ServerInstance $DatabaseServer -Database $DatabaseName;
+                if ($null -ne $databasePermissions ) {
+                    $targetResource['WemInfrastructureServiceAccount'] = $WemInfrastructureServiceAccount;
+                }
+
             }
             else {
                 $targetResource['Ensure'] = 'Absent';
@@ -113,6 +136,10 @@ function Test-TargetResource {
 
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
+        [System.String] $WemInfrastructureServiceAccount,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
         [System.String] $DefaultAdministratorsGroup,
 
         [Parameter()]
@@ -136,7 +163,12 @@ function Test-TargetResource {
 
         $desiredDatabaseFilesFolder = Join-Path $DatabaseFilesFolder "";
 
-        if (($targetResource.Ensure -eq $Ensure) -and ($targetResource.DatabaseName -eq $DatabaseName) -and ( $targetDatabaseFilesFolder -eq $desiredDatabaseFilesFolder) -and ($targetResource.VuemUserSqlPassword -eq $VuemUserSqlPassword) -and ($targetResource.DefaultAdministratorsGroup -eq $DefaultAdministratorsGroup)) {
+        if (($targetResource.Ensure -eq $Ensure) -and 
+            ($targetResource.DatabaseName -eq $DatabaseName) -and 
+            ($targetDatabaseFilesFolder -eq $desiredDatabaseFilesFolder) -and 
+            ($targetResource.VuemUserSqlPassword -eq $VuemUserSqlPassword) -and
+            ($targetResource.WemInfrastructureServiceAccount -eq $WemInfrastructureServiceAccount) -and 
+            ($targetResource.DefaultAdministratorsGroup -eq $DefaultAdministratorsGroup)) {
 
             Write-Verbose ($localizedData.DatabaseDoesExist -f $DatabaseName, $DatabaseServer);
             Write-Verbose ($localizedData.ResourceInDesiredState -f $DatabaseName);
@@ -185,6 +217,10 @@ function Set-TargetResource {
 
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
+        [System.String] $WemInfrastructureServiceAccount,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
         [System.String] $DefaultAdministratorsGroup,
 
         [Parameter()]
@@ -200,7 +236,12 @@ function Set-TargetResource {
 
         #Test if WEM SDK module is available
         if (-not (Test-Path -Path "${Env:ProgramFiles(x86)}\Norskale\Norskale Infrastructure Services\SDK\WemDatabaseConfiguration\WemDatabaseConfiguration.psd1" -PathType leaf)) {
-                ThrowInvalidProgramException -ErrorId 'WEMSdkNotFound' -ErrorMessage $localized.WEMSDKNotFoundError;
+            ThrowInvalidProgramException -ErrorId 'WEMSdkNotFound' -ErrorMessage $localizedData.WEMSDKNotFoundError;
+        }
+
+        #Test if SqlServer module if available
+        if (-not (Get-Module -ListAvailable -Name SqlServer)) {
+            ThrowInvalidProgramException -ErrorId 'SqlServerModuleNotFoundError' -ErrorMessage $localizedData.SqlServerModuleNotFoundError;
         }
 
     } #end begin
@@ -209,6 +250,7 @@ function Set-TargetResource {
         $scriptBlock = {
             #Import Citrix WEM SDK Powershell module
             Import-Module "${Env:ProgramFiles(x86)}\Norskale\Norskale Infrastructure Services\SDK\WemDatabaseConfiguration\WemDatabaseConfiguration.psd1" -Verbose:$false;
+            Import-Module -Name SqlServer;
 
             #GET data
             $targetResource = Get-TargetResource @PSBoundParameters;
@@ -221,10 +263,14 @@ function Set-TargetResource {
                 }
                 $desiredDatabaseFilesFolder = Join-Path $DatabaseFilesFolder "";
 
+                #Convert plain-text VuemUserSqlPassword to Secure-String
+                $VuemUserSqlPasswordSecureString = ConvertTo-SecureString -AsPlainText $VuemUserSqlPassword -Force
+
+
                 #If database does not exist : create database
                 if (-not ($targetResource.DatabaseName -eq $DatabaseName)) {
                     $databaseFileName = Join-Path $DatabaseFilesFolder $DatabaseName;
-                    New-WemDatabase -DatabaseServerInstance $DatabaseServer -DatabaseName $DatabaseName -DataFilePath($databaseFileName+"_Data.mdf") -LogFilePath($databaseFileName+"_Log.ldf") -DefaultAdministratorsGroup $DefaultAdministratorsGroup;
+                    New-WemDatabase -DatabaseServerInstance $DatabaseServer -DatabaseName $DatabaseName -DataFilePath($databaseFileName+"_Data.mdf") -LogFilePath($databaseFileName+"_Log.ldf") -DefaultAdministratorsGroup $DefaultAdministratorsGroup -VuemUserSqlPassword $VuemUserSqlPasswordSecureString -WindowsAccount $WemInfrastructureServiceAccount;
                     Write-Verbose ($using:localizedData.CreatingWEMDatabase -f $using:DatabaseName, $using:DatabaseServer);
                 }
                 else {
@@ -263,6 +309,31 @@ function Set-TargetResource {
                     if (-not ($targetResource.VuemUserSqlPassword -eq $VuemUserSqlPassword)) {
                         $null = Invoke-Sqlcmd -Query "ALTER LOGIN vuemUser WITH PASSWORD = '$VuemUserSqlPassword'" -ServerInstance $DatabaseServer
                     }
+
+                    #If WemInfrastructureServiceAccount is wrong, add the correct user login and permissions. Remove wrog user permissions.
+                    if (-not ($targetResource.WemInfrastructureServiceAccount -eq $WemInfrastructureServiceAccount)) {
+                        # Add the user into SQL.
+                        [string]$err = Invoke-Sqlcmd -Query "CREATE LOGIN `[$WemInfrastructureServiceAccount`] FROM WINDOWS WITH DEFAULT_DATABASE=`[MASTER`], DEFAULT_LANGUAGE=`[us_english`]" -ServerInstance $DatabaseServer
+                        
+                        # This variable will become populated if an error occurred; else it will remain blank.
+                        if (-not $err) {
+                            #Assign permissions to WemInfrastructureServiceAccount on WEM DatabaseName
+                            [string]$err = Invoke-Sqlcmd -Query "GRANT CONNECT TO `[$WemInfrastructureServiceAccount`]  AS `[dbo`]" -ServerInstance $DatabaseServer -Database $DatabaseName;
+                            [string]$err = Invoke-Sqlcmd -Query "GRANT CREATE PROCEDURE TO `[$WemInfrastructureServiceAccount`]  AS `[dbo`]" -ServerInstance $DatabaseServer -Database $DatabaseName;
+                            [string]$err = Invoke-Sqlcmd -Query "GRANT CREATE QUEUE TO `[$WemInfrastructureServiceAccount`] AS `[dbo`]" -ServerInstance $DatabaseServer -Database $DatabaseName;
+                            [string]$err = Invoke-Sqlcmd -Query "GRANT CREATE SERVICE TO `[$WemInfrastructureServiceAccount`] AS `[dbo`]" -ServerInstance $DatabaseServer -Database $DatabaseName;
+                            [string]$err = Invoke-Sqlcmd -Query "GRANT SUBSCRIBE QUERY NOTIFICATIONS TO `[$WemInfrastructureServiceAccount`] AS `[dbo`]" -ServerInstance $DatabaseServer -Database $DatabaseName;
+                            
+                            if ($err) {
+                                Write-Verbose("Error Assigning Permisssions to $WemInfrastructureServiceAccount : $err");
+                            }
+                        
+                        }
+                        else {
+                            Write-Verbose("The following error occurred while creating SQL User: $err ");
+                        }
+                    }
+
                 }
             }
             #If ensure eq Absent, drop the existing database

@@ -69,6 +69,7 @@ WemDatabase [string] #ResourceName
     DatabaseServer = [string]
     DatabaseFilesFolder = [string]
     VuemUserSqlPassword = [string]
+    WemInfrastructureServiceAccount = [String]
     DefaultAdministratorsGroup = [string]
     [ Ensure = [string] { Absent | Present } ]
 }
@@ -81,6 +82,7 @@ WemDatabase [string] #ResourceName
 * **`[String]` DatabaseServer** _(Required)_: MS SQL Server hostname hosting the WEM database.
 * **`[String]` DatabaseFilesFolder** _(Required)_: Path to the data and log files location on the SQL Server. You must provide a valid filepath, otherwise the cmdlet will fail.
 * **`[String]` VuemUserSqlPassword** _(Required)_: Specific password for the Citrix WEM vuemUser SQL user account.
+* **`[String]` WemInfrastructureServiceAccount** _(Required)_: Windows service account of WEM infrastructure service.
 * **`[String]` DefaultAdministratorsGroup** _(Required)_: Citrix WEM default administrators group.
 * **`[String]` Ensure** _(Optional)_: Whether the database should be added or removed. Valid values are Present or Absent. Default value : Present
 

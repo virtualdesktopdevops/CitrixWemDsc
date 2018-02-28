@@ -5,6 +5,7 @@ class VDD_WemDatabase : OMI_BaseResource
     [Required, Description("MS SQL Server hostname hosting the WEM database")] String DatabaseServer;
     [Required, Description("Path to the data and log files location on the SQL Server. You must provide a valid filepath, otherwise the cmdlet will fail.")] String DatabaseFilesFolder;
     [Required, Description("Specific password for the Citrix WEM vuemUser SQL user account")] String VuemUserSqlPassword;
+    [Required, Description("Windows service account of WEM infrastructure service.")] String WemInfrastructureServiceAccount;
     [Required, Description("Citrix WEM default administrators group")] String DefaultAdministratorsGroup;
     [Write, EmbeddedInstance("MSFT_Credential"), Description("Specifies a user account that has permission to create the WEM database.")] String Credential;
     [Write, ValueMap{"Present", "Absent"}, Values{"Present", "Absent"}] String Ensure;
