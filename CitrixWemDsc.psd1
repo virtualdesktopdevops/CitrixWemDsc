@@ -1,5 +1,5 @@
 @{
-    ModuleVersion        = '0.1.0'
+    ModuleVersion        = '0.1.0.0'
     GUID                 = '1be452c5-ceeb-4f0a-8dc6-0feba472f69d'
     Author               = 'Virtual Desktop Devops'
     CompanyName          = 'Virtual Desktop Devops'
@@ -16,6 +16,9 @@
             LicenseUri = 'https://github.com/virtualdesktopdevops/CitrixWemDsc/blob/master/LICENSE'
             ProjectUri = 'https://virtualdesktopdevops.github.io/CitrixWemDsc/'
             IconUri    = ''
+            ReleaseNotes = '- Beta release of the CitrixWemDsc powershell DSC module
+            - Compatible with Citrix Workspace Environment Manager 4.5
+            - WemDatabase & WemBrokerConfig DSC resources'
         } # End of PSData hashtable
     } # End of PrivateData hashtable
 }
