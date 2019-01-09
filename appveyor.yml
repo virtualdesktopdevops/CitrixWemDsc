@@ -1,0 +1,7 @@
+before_build:
+  - nuget restore
+build_script:
+  - choco install "msbuild-sonarqube-runner" -y
+  - MSBuild.SonarQube.Runner.exe begin /k:"virtualdesktopdevops_CitrixWemDsc" /d:sonar.organization="virtualdesktopdevops" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.login="f96bf2a49584617e29dacaf8b29673c3f17fae81"
+  - msbuild "YourProjectName.sln"
+  - MSBuild.SonarQube.Runner.exe end /d:"sonar.login=f96bf2a49584617e29dacaf8b29673c3f17fae81"
