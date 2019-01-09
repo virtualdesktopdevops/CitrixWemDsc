@@ -1,5 +1,28 @@
+version: 1.0.{build}
+os: WMF 5
+# Skip on updates to the readme
+skip_commits:
+  message: /readme*/
+  
+install:
+  - ps: Install-PackageProvider -Name NuGet -Force
+  - ps: Install-Module PsScriptAnalyzer -Force
+  
 build: false
 test_script:
-  - choco install "msbuild-sonarqube-runner" -y
-  - SonarScanner.MSBuild.exe begin /k:"virtualdesktopdevops_CitrixWemDsc" /d:sonar.organization="virtualdesktopdevops" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.login="f96bf2a49584617e29dacaf8b29673c3f17fae81"
-  - SonarScanner.MSBuild.exe end /d:"sonar.login=f96bf2a49584617e29dacaf8b29673c3f17fae81"
+  - ps: |
+      Add-AppveyorTest -Name "PsScriptAnalyzer" -Outcome Running
+      $Results = Invoke-ScriptAnalyzer -Path $pwd -Recurse -Severity Error -ErrorAction SilentlyContinue
+      If ($Results) {
+        $ResultString = $Results | Out-String
+        Write-Warning $ResultString
+        Add-AppveyorMessage -Message "PSScriptAnalyzer output contained one or more result(s) with 'Error' severity.`
+        Check the 'Tests' tab of this build for more details." -Category Error
+        Update-AppveyorTest -Name "PsScriptAnalyzer" -Outcome Failed -ErrorMessage $ResultString
+        
+        # Failing the build
+        Throw "Build failed"
+      }
+      Else {
+        Update-AppveyorTest -Name "PsScriptAnalyzer" -Outcome Passed
+      }
